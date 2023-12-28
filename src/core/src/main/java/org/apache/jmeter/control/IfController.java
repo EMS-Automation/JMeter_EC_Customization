@@ -241,8 +241,10 @@ public class IfController extends GenericController implements Serializable, Thr
 //      --------------------------- Customized for EMS Automation by @ruthna.s---------------------------
             if(!result) {
                 String controllerComment = getProperty(TestElement.COMMENTS).toString();
-                String removeBlankSpace = controllerComment.replaceAll("\\s", "");
-                skipResult = removeBlankSpace.contains("@Skip:");
+                if (controllerComment != null) {
+                    String removeBlankSpace = controllerComment.replaceAll("\\s", "");
+                    skipResult = removeBlankSpace.contains("@Skip:");
+                }
             }
         }
 //      ---------------------------------------------------------------------------------------------------
