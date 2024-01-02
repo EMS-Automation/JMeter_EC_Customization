@@ -49,6 +49,7 @@ import org.apache.jmeter.testelement.AbstractTestElement;
 import org.apache.jmeter.testelement.TestElement;
 import org.apache.jmeter.testelement.TestIterationListener;
 import org.apache.jmeter.testelement.ThreadListener;
+import org.apache.jmeter.testelement.property.JMeterProperty;
 import org.apache.jmeter.threads.JMeterContext.TestLogicalAction;
 import org.apache.jmeter.timers.Timer;
 import org.apache.jmeter.timers.TimerService;
@@ -64,6 +65,9 @@ import org.apache.jorphan.util.JMeterStopThreadException;
 import org.apiguardian.api.API;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.apache.jmeter.testelement.TestElement;
+import org.apache.jmeter.testelement.ThreadListener;
+import org.apache.jmeter.testelement.property.StringProperty;
 
 /**
  * The JMeter interface to the sampling process, allowing JMeter to see the
@@ -576,12 +580,21 @@ public class JMeterThread implements Runnable, Interruptible {
             if(!checkSkippedRequest) {
                 result = doSampling(threadContext, sampler);
             }else {
+                String controllerComment = null;
+                int controllerSize = pack.getControllers().size();
+                for(int i = 0; i < controllerSize; i++){
+                    String controllerName = pack.getControllers().get(i).getName();
+                    if(controllerName.equals("If Controller")){
+                        controllerComment = pack.getControllers().get(i).getComment();
+                        break;
+                    }
+                }
                 List<SampleListener> sampleListeners = getSampleListeners(pack, transactionPack, transactionSampler);
                 AssertionResult assertionResult = new AssertionResult("Skipped Due to pre request failed");
                 assertionResult.setFailure(true);
-                String samplerComment = sampler.getComment();
-                if(samplerComment.contains("#")) {
-                    assertionResult.setFailureMessage("Skipped Due to ".concat(samplerComment.substring(samplerComment.indexOf("#") + 1)));
+//                String samplerComment = sampler.getComment();
+                if(controllerComment.contains("#")) {
+                    assertionResult.setFailureMessage("Skipped Due to ".concat(controllerComment.substring(controllerComment.indexOf("#") + 1)));
                 } else {
                     assertionResult.setFailureMessage("Skipped Due to pre request failed");
                 }
