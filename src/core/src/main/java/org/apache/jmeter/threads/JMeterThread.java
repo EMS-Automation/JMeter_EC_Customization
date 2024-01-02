@@ -576,7 +576,7 @@ public class JMeterThread implements Runnable, Interruptible {
             if(!checkSkippedRequest) {
                 result = doSampling(threadContext, sampler);
             }else {
-                String controllerComment = null;
+                String controllerComment = "";
                 int controllerSize = pack.getControllers().size();
                 for(int i = 0; i < controllerSize; i++){
                     String controllerName = pack.getControllers().get(i).getName();
@@ -588,7 +588,6 @@ public class JMeterThread implements Runnable, Interruptible {
                 List<SampleListener> sampleListeners = getSampleListeners(pack, transactionPack, transactionSampler);
                 AssertionResult assertionResult = new AssertionResult("Skipped Due to pre request failed");
                 assertionResult.setFailure(true);
-//                String samplerComment = sampler.getComment();
                 if(controllerComment.contains("#")) {
                     assertionResult.setFailureMessage("Skipped Due to ".concat(controllerComment.substring(controllerComment.indexOf("#") + 1)));
                 } else {
