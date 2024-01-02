@@ -49,7 +49,6 @@ import org.apache.jmeter.testelement.AbstractTestElement;
 import org.apache.jmeter.testelement.TestElement;
 import org.apache.jmeter.testelement.TestIterationListener;
 import org.apache.jmeter.testelement.ThreadListener;
-import org.apache.jmeter.testelement.property.JMeterProperty;
 import org.apache.jmeter.threads.JMeterContext.TestLogicalAction;
 import org.apache.jmeter.timers.Timer;
 import org.apache.jmeter.timers.TimerService;
@@ -65,9 +64,6 @@ import org.apache.jorphan.util.JMeterStopThreadException;
 import org.apiguardian.api.API;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.apache.jmeter.testelement.TestElement;
-import org.apache.jmeter.testelement.ThreadListener;
-import org.apache.jmeter.testelement.property.StringProperty;
 
 /**
  * The JMeter interface to the sampling process, allowing JMeter to see the
