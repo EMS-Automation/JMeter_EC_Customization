@@ -243,7 +243,7 @@ public class IfController extends GenericController implements Serializable, Thr
                 String controllerComment = getProperty(TestElement.COMMENTS).toString();
                 if (controllerComment != null) {
                     String removeBlankSpace = controllerComment.replaceAll("\\s", "");
-                    skipResult = removeBlankSpace.contains("@Skip:");
+                    skipResult = removeBlankSpace.contains("@Skip:") || removeBlankSpace.contains("#");
                 }
             }
         }

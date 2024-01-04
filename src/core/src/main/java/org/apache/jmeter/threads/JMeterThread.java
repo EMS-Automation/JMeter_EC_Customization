@@ -572,18 +572,29 @@ public class JMeterThread implements Runnable, Interruptible {
             Sampler sampler = pack.getSampler();
 //          result = doSampling(threadContext, sampler);
 //         --------------------------- Customized for EMS Automation by @ruthna.s---------------------------
+            String failureMsg;
             checkSkippedRequest = sampler.getPropertyAsString("if_controller").equals("skipped");
             if(!checkSkippedRequest) {
                 result = doSampling(threadContext, sampler);
-            }else {
+            } else {
+                String controllerComment = "";
+                int controllerSize = pack.getControllers().size();
+                for(int i = 0; i < controllerSize; i++){
+                    String testClassName = pack.getControllers().get(i).getProperty(TestElement.TEST_CLASS).toString();
+                    if(testClassName.contains("IfController")){
+                        controllerComment = pack.getControllers().get(i).getComment();
+                        break;
+                    }
+                }
                 List<SampleListener> sampleListeners = getSampleListeners(pack, transactionPack, transactionSampler);
-                AssertionResult assertionResult = new AssertionResult("Skipped Due to pre request failed");
+                AssertionResult assertionResult = new AssertionResult();
                 assertionResult.setFailure(true);
-                String samplerComment = sampler.getComment();
-                if(samplerComment.contains("#")) {
-                    assertionResult.setFailureMessage("Skipped Due to ".concat(samplerComment.substring(samplerComment.indexOf("#") + 1)));
+                if(controllerComment.contains("#")) {
+                    failureMsg = "Skipped Due to ".concat(controllerComment.substring(controllerComment.indexOf("#") + 1).trim());
+                    assertionResult.setFailureMessage(failureMsg);
                 } else {
                     assertionResult.setFailureMessage("Skipped Due to pre request failed");
+                    failureMsg = "Skipped Due to pre request failed";
                 }
                 result = new HTTPSampleResult();
                 result.setSampleLabel(sampler.getPropertyAsString("TestElement.name"));
@@ -591,7 +602,7 @@ public class JMeterThread implements Runnable, Interruptible {
                 result.setRequestHeaders("Request-Skipped");
                 result.setResponseHeaders("Response-Skipped");
                 result.setResponseData("Response-Skipped");
-                result.setResponseMessage("Skipped Due to pre request failed");
+                result.setResponseMessage(failureMsg);
                 result.setResponseCode("412");
                 result.addAssertionResult(assertionResult);
                 result.setTimeStamp(0);
