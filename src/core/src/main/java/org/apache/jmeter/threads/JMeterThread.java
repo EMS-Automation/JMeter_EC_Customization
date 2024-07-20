@@ -17,6 +17,8 @@
 
 package org.apache.jmeter.threads;
 
+import java.io.BufferedReader;
+import java.io.FileReader;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -267,43 +269,65 @@ public class JMeterThread implements Runnable, Interruptible {
             while (running) {
                 Sampler sam = threadGroupLoopController.next();
                 while (running && sam != null) {
-                    processSampler(sam, null, threadContext);
-                    threadContext.cleanAfterSample();
+                    boolean found = false;
+                    JMeterVariables variables = this.threadVars;
+                    String testSuiteBuildDir = variables.get("testSuiteBuildDir");
+                    String runSpecificCasesFilePath = testSuiteBuildDir + "/" + "RunSpecificCaseInJMeter.txt";
 
-                    boolean lastSampleOk = TRUE.equals(threadContext.getVariables().get(LAST_SAMPLE_OK));
-                    // restart of the next loop
-                    // - was requested through threadContext
-                    // - or the last sample failed AND the onErrorStartNextLoop option is enabled
-                    if (threadContext.getTestLogicalAction() != TestLogicalAction.CONTINUE
-                            || (onErrorStartNextLoop && !lastSampleOk)) {
-                        if (log.isDebugEnabled() && onErrorStartNextLoop
-                                && threadContext.getTestLogicalAction() != TestLogicalAction.CONTINUE) {
-                            log.debug("Start Next Thread Loop option is on, Last sample failed, starting next thread loop");
-                        }
-                        if(onErrorStartNextLoop && !lastSampleOk){
-                            triggerLoopLogicalActionOnParentControllers(sam, threadContext, JMeterThread::continueOnThreadLoop);
-                        } else {
-                            switch (threadContext.getTestLogicalAction()) {
-                                case BREAK_CURRENT_LOOP:
-                                    triggerLoopLogicalActionOnParentControllers(sam, threadContext, JMeterThread::breakOnCurrentLoop);
-                                    break;
-                                case START_NEXT_ITERATION_OF_THREAD:
-                                    triggerLoopLogicalActionOnParentControllers(sam, threadContext, JMeterThread::continueOnThreadLoop);
-                                    break;
-                                case START_NEXT_ITERATION_OF_CURRENT_LOOP:
-                                    triggerLoopLogicalActionOnParentControllers(sam, threadContext, JMeterThread::continueOnCurrentLoop);
-                                    break;
-                                default:
-                                    break;
+                    try (BufferedReader reader = new BufferedReader(new FileReader(runSpecificCasesFilePath))) {
+                        String line;
+                        while ((line = reader.readLine()) != null) {
+                            if (line.startsWith("EA_Authorization") || line.equals(sam.getPropertyAsString("TestElement.name"))) {
+                                found = true;
+                                break;
                             }
                         }
-                        threadContext.setTestLogicalAction(TestLogicalAction.CONTINUE);
-                        sam = null;
-                        setLastSampleOk(threadContext.getVariables(), true);
+                    } catch (Exception e) {
+                        log.error("Error reading file {}", runSpecificCasesFilePath, e);
                     }
-                    else {
+
+                    if (found) {
+                        processSampler(sam, null, threadContext);
+                        threadContext.cleanAfterSample();
+
+                        boolean lastSampleOk = TRUE.equals(threadContext.getVariables().get(LAST_SAMPLE_OK));
+                        // restart of the next loop
+                        // - was requested through threadContext
+                        // - or the last sample failed AND the onErrorStartNextLoop option is enabled
+                        if (threadContext.getTestLogicalAction() != TestLogicalAction.CONTINUE
+                                || (onErrorStartNextLoop && !lastSampleOk)) {
+                            if (log.isDebugEnabled() && onErrorStartNextLoop
+                                    && threadContext.getTestLogicalAction() != TestLogicalAction.CONTINUE) {
+                                log.debug("Start Next Thread Loop option is on, Last sample failed, starting next thread loop");
+                            }
+                            if(onErrorStartNextLoop && !lastSampleOk){
+                                triggerLoopLogicalActionOnParentControllers(sam, threadContext, JMeterThread::continueOnThreadLoop);
+                            } else {
+                                switch (threadContext.getTestLogicalAction()) {
+                                    case BREAK_CURRENT_LOOP:
+                                        triggerLoopLogicalActionOnParentControllers(sam, threadContext, JMeterThread::breakOnCurrentLoop);
+                                        break;
+                                    case START_NEXT_ITERATION_OF_THREAD:
+                                        triggerLoopLogicalActionOnParentControllers(sam, threadContext, JMeterThread::continueOnThreadLoop);
+                                        break;
+                                    case START_NEXT_ITERATION_OF_CURRENT_LOOP:
+                                        triggerLoopLogicalActionOnParentControllers(sam, threadContext, JMeterThread::continueOnCurrentLoop);
+                                        break;
+                                    default:
+                                        break;
+                                }
+                            }
+                            threadContext.setTestLogicalAction(TestLogicalAction.CONTINUE);
+                            sam = null;
+                            setLastSampleOk(threadContext.getVariables(), true);
+                        }
+                        else {
+                            sam = threadGroupLoopController.next();
+                        }
+                    } else {
                         sam = threadGroupLoopController.next();
                     }
+
                 }
 
                 // It would be possible to add finally for Thread Loop here
