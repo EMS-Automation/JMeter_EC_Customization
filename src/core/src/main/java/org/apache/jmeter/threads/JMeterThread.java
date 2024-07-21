@@ -18,13 +18,19 @@
 package org.apache.jmeter.threads;
 
 import java.io.BufferedReader;
+import java.io.FileNotFoundException;
 import java.io.FileReader;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
+import java.util.stream.Stream;
 
 import org.apache.http.HttpRequest;
 import org.apache.jmeter.assertions.Assertion;
@@ -269,24 +275,36 @@ public class JMeterThread implements Runnable, Interruptible {
             while (running) {
                 Sampler sam = threadGroupLoopController.next();
                 while (running && sam != null) {
-                    boolean found = false;
+                    boolean foundInFile = false;
                     JMeterVariables variables = this.threadVars;
                     String testSuiteBuildDir = variables.get("testSuiteBuildDir");
                     String runSpecificCasesFilePath = testSuiteBuildDir + "/" + "RunSpecificCaseInJMeter.txt";
+                    String testName = sam.getPropertyAsString("TestElement.name");
+                    String testComment = sam.getPropertyAsString("TestPlan.comments");
 
-                    try (BufferedReader reader = new BufferedReader(new FileReader(runSpecificCasesFilePath))) {
-                        String line;
-                        while ((line = reader.readLine()) != null) {
-                            if (line.startsWith("EA_Authorization") || line.equals(sam.getPropertyAsString("TestElement.name"))) {
-                                found = true;
-                                break;
+                    try {
+                        List<String> lines = Files.readAllLines(Paths.get(runSpecificCasesFilePath));
+                        boolean containsAll = lines.stream().anyMatch(line -> line.contains("All"));
+                        if (containsAll) {
+                            foundInFile = true;
+                        } else {
+                            if (testName.startsWith("EA_Authorization") || testComment.equalsIgnoreCase("Mandatory Prerequisites")) {
+                                foundInFile = true;
+                            } else {
+                                foundInFile = isTestNamePresentInFile(testName, runSpecificCasesFilePath);
                             }
                         }
-                    } catch (Exception e) {
-                        log.error("Error reading file {}", runSpecificCasesFilePath, e);
+                    } catch (IOException e) {
+                        e.printStackTrace();
                     }
 
-                    if (found) {
+//                    if (testName.startsWith("EA_Authorization") || testComment.equalsIgnoreCase("Mandatory Prerequisites")) {
+//                        foundInFile = true;
+//                    } else {
+//                        foundInFile = isTestNamePresentInFile(testName, runSpecificCasesFilePath);
+//                    }
+
+                    if (foundInFile) {
                         processSampler(sam, null, threadContext);
                         threadContext.cleanAfterSample();
 
@@ -369,6 +387,32 @@ public class JMeterThread implements Runnable, Interruptible {
             } finally {
                 interruptLock.unlock(); // Allow any pending interrupt to complete (OK because currentSampler == null)
             }
+        }
+    }
+
+//    private boolean isTestNamePresentInFile(String testName, String filePath) {
+//        try (BufferedReader reader = new BufferedReader(new FileReader(filePath))) {
+//            String line;
+//            while ((line = reader.readLine()) != null) {
+//                if (line.contains(testName)) {
+//                    return true;
+//                }
+//            }
+//        } catch (IOException e) {
+//            log.error("Error reading file {}", filePath, e);
+//        }
+//        return false;
+//    }
+
+    private boolean isTestNamePresentInFile(String testName, String filePath) {
+        Path path = Paths.get(filePath);
+        try {
+            List<String> lines = Files.readAllLines(path);
+            String exactTestName = testName.split(",", 2)[0].trim();
+            return lines.stream().anyMatch(line -> line.contains(exactTestName));
+        } catch (IOException e) {
+            log.error("Error reading file {}", filePath, e);
+            return false;
         }
     }
 
