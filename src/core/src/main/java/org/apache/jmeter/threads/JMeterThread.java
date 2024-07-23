@@ -398,32 +398,6 @@ public class JMeterThread implements Runnable, Interruptible {
         }
     }
 
-//    private boolean isTestNamePresentInFile(String testName, String filePath) {
-//        try (BufferedReader reader = new BufferedReader(new FileReader(filePath))) {
-//            String line;
-//            while ((line = reader.readLine()) != null) {
-//                if (line.contains(testName)) {
-//                    return true;
-//                }
-//            }
-//        } catch (IOException e) {
-//            log.error("Error reading file {}", filePath, e);
-//        }
-//        return false;
-//    }
-
-//    private boolean isTestNamePresentInFile(String testName, String filePath) {
-//        Path path = Paths.get(filePath);
-//        try {
-//            List<String> lines = Files.readAllLines(path);
-//            String exactTestName = testName.split(",", 2)[0].trim();
-//            return lines.stream().anyMatch(line -> line.contains(exactTestName));
-//        } catch (IOException e) {
-//            log.error("Error reading file {}", filePath, e);
-//            return false;
-//        }
-//    }
-
     private boolean isTestNamePresentInFile(String testName, String filePath) {
         Path path = Paths.get(filePath);
         try {
