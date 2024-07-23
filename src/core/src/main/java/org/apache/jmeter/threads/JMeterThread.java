@@ -280,29 +280,37 @@ public class JMeterThread implements Runnable, Interruptible {
                     String testSuiteBuildDir = variables.get("testSuiteBuildDir");
                     String runSpecificCasesFilePath = testSuiteBuildDir + "/" + "RunSpecificCaseInJMeter.txt";
                     String testName = sam.getPropertyAsString("TestElement.name");
-                    String testComment = sam.getPropertyAsString("TestPlan.comments");
+                    String testComment = sam.getPropertyAsString("TestPlan.comments").trim().toLowerCase();
+                    String testClass = sam.getPropertyAsString("TestElement.test_class");
 
                     try {
-                        List<String> lines = Files.readAllLines(Paths.get(runSpecificCasesFilePath));
-                        boolean containsAll = lines.stream().anyMatch(line -> line.contains("All"));
-                        if (containsAll) {
+                        if (Files.notExists(Paths.get(runSpecificCasesFilePath)) || Files.size(Paths.get(runSpecificCasesFilePath)) == 0) {
                             foundInFile = true;
                         } else {
-                            if (testName.startsWith("EA_Authorization") || testComment.equalsIgnoreCase("Mandatory Prerequisites")) {
+                            List<String> lines = Files.readAllLines(Paths.get(runSpecificCasesFilePath));
+                            boolean containsAll = lines.stream().anyMatch(line -> line.contains("All"));
+                            if (containsAll) {
                                 foundInFile = true;
                             } else {
-                                foundInFile = isTestNamePresentInFile(testName, runSpecificCasesFilePath);
+                                if (!testClass.contains("HTTPSampler")) {
+                                    foundInFile = true;
+                                } else {
+                                    if (testComment.contains(("MandatoryPrerequisites").toLowerCase())) {
+                                        foundInFile = true;
+                                    } else {
+                                        if (testName.startsWith("EA_Authorization") || testName.startsWith("EA_AutomationUtils")) {
+                                            foundInFile = true;
+                                        } else {
+                                            foundInFile = isTestNamePresentInFile(testName, runSpecificCasesFilePath);
+                                        }
+                                    }
+                                }
                             }
+
                         }
                     } catch (IOException e) {
                         e.printStackTrace();
                     }
-
-//                    if (testName.startsWith("EA_Authorization") || testComment.equalsIgnoreCase("Mandatory Prerequisites")) {
-//                        foundInFile = true;
-//                    } else {
-//                        foundInFile = isTestNamePresentInFile(testName, runSpecificCasesFilePath);
-//                    }
 
                     if (foundInFile) {
                         processSampler(sam, null, threadContext);
@@ -404,14 +412,26 @@ public class JMeterThread implements Runnable, Interruptible {
 //        return false;
 //    }
 
+//    private boolean isTestNamePresentInFile(String testName, String filePath) {
+//        Path path = Paths.get(filePath);
+//        try {
+//            List<String> lines = Files.readAllLines(path);
+//            String exactTestName = testName.split(",", 2)[0].trim();
+//            return lines.stream().anyMatch(line -> line.contains(exactTestName));
+//        } catch (IOException e) {
+//            log.error("Error reading file {}", filePath, e);
+//            return false;
+//        }
+//    }
+
     private boolean isTestNamePresentInFile(String testName, String filePath) {
         Path path = Paths.get(filePath);
         try {
             List<String> lines = Files.readAllLines(path);
-            String exactTestName = testName.split(",", 2)[0].trim();
+            String exactTestName = "\"" + testName.split(",", 2)[0].trim() + "\"";
             return lines.stream().anyMatch(line -> line.contains(exactTestName));
         } catch (IOException e) {
-            log.error("Error reading file {}", filePath, e);
+            log.error("Error reading file " + filePath + ": " + e.getMessage());
             return false;
         }
     }
