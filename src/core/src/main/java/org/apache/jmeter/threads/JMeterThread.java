@@ -403,7 +403,7 @@ public class JMeterThread implements Runnable, Interruptible {
             }
             return lines.stream().anyMatch(line -> line.contains(exactTestName));
         } catch (Exception e) {
-            log.error("Exception occured in reading JMeterSpecificTestcaseList file!");
+            log.error("Exception occured while reading JMeterSpecificTestcaseList file!");
             return false;
         }
     }
@@ -413,7 +413,7 @@ public class JMeterThread implements Runnable, Interruptible {
         try {
             lines = Files.readAllLines(Paths.get(filePath));
         } catch (Exception e) {
-            log.error("Exception occured in reading JMeterSpecificTestcaseList file!");
+            log.error("Exception occured while reading JMeterSpecificTestcaseList file!");
         }
         return lines;
     }
