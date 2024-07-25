@@ -17,8 +17,10 @@
 
 package org.apache.jmeter.threads;
 
-import java.io.*;
+import java.io.File;
+import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -26,8 +28,9 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
-import java.util.*;
-import java.util.concurrent.*;
+import java.util.Map;
+import java.util.Collections;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.http.HttpRequest;
 import org.apache.jmeter.assertions.Assertion;
@@ -273,20 +276,21 @@ public class JMeterThread implements Runnable, Interruptible {
             while (running) {
                 Sampler sam = threadGroupLoopController.next();
                 while (running && sam != null) {
-//  ----------------------------------- Customized for EMS Automation ---------------------------------------
+//  ----------------------------------- Customized by EMS Automation - Started ---------------------------------------
                     boolean foundInFile = false;
                     JMeterVariables variables = this.threadVars;
                     String testSuiteBuildDir = variables.get("testSuiteBuildDir");
                     String runSpecificCasesFilePath = testSuiteBuildDir + File.separator + "JMeterSpecificTestcaseList.txt";
                     String testName = sam.getPropertyAsString("TestElement.name");
-                    String testComment = sam.getPropertyAsString("TestPlan.comments").trim().toLowerCase();
+                    String testComment = sam.getPropertyAsString("TestPlan.comments").replaceAll("\\s", "").trim().toLowerCase();
                     String testClass = sam.getPropertyAsString("TestElement.test_class");
 
                     try {
-                        if (Files.notExists(Paths.get(runSpecificCasesFilePath)) || Files.size(Paths.get(runSpecificCasesFilePath)) == 0) {
+                        Path filePath = Paths.get(runSpecificCasesFilePath);
+                        if (Files.notExists(filePath) || Files.size(filePath) == 0) {
                             foundInFile = true;
                         } else {
-                            List<String> lines = Files.readAllLines(Paths.get(runSpecificCasesFilePath));
+                            List<String> lines = Files.readAllLines(filePath);
                             boolean runAll = lines.stream().anyMatch(line -> line.contains("All"));
                             boolean containsOnlyWhitespace = lines.stream().allMatch(line -> line.trim().isEmpty());
 
@@ -305,7 +309,7 @@ public class JMeterThread implements Runnable, Interruptible {
                     }
 
                     if (foundInFile) {
-                        //  ----------------------------------- Customized for EMS Automation ---------------------------------------
+                        //  ----------------------------------- Customized by EMS Automation - Ended ---------------------------------------
                         processSampler(sam, null, threadContext);
                         threadContext.cleanAfterSample();
 
@@ -339,10 +343,10 @@ public class JMeterThread implements Runnable, Interruptible {
                             threadContext.setTestLogicalAction(TestLogicalAction.CONTINUE);
                             sam = null;
                             setLastSampleOk(threadContext.getVariables(), true);
-                        } //  ----------------------------------- Customized for EMS Automation ---------------------------------------
+                        } //  ----------------------------------- Customized by EMS Automation - Started ---------------------------------------
                         else {
                             sam = threadGroupLoopController.next();
-                        } //  ----------------------------------- Customized for EMS Automation ---------------------------------------
+                        } //  ----------------------------------- Customized by EMS Automation - Ended ---------------------------------------
                     } else {
                         sam = threadGroupLoopController.next();
                     }
@@ -391,7 +395,7 @@ public class JMeterThread implements Runnable, Interruptible {
         }
     }
 
-//  ----------------------------------- Customized for EMS Automation ---------------------------------------
+//  ----------------------------------- Customized by EMS Automation - Started ---------------------------------------
     public boolean isTestNamePresentInFile(String testName, String filePath) {
         try {
             String exactTestName;
@@ -417,7 +421,7 @@ public class JMeterThread implements Runnable, Interruptible {
         }
         return lines;
     }
-//  ----------------------------------- Customized for EMS Automation ---------------------------------------
+//  ----------------------------------- Customized by EMS Automation - Ended ---------------------------------------
 
     /**
      * Trigger break/continue/switch to next thread Loop  depending on consumer implementation
