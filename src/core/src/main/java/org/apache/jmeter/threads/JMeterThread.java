@@ -282,7 +282,7 @@ public class JMeterThread implements Runnable, Interruptible {
                     String testSuiteBuildDir = variables.get("testSuiteBuildDir");
                     String runSpecificCasesFilePath = testSuiteBuildDir + File.separator + "JMeterSpecificTestcaseList.txt";
                     String testName = sam.getPropertyAsString("TestElement.name");
-                    String testComment = sam.getPropertyAsString("TestPlan.comments").replaceAll("\\s", "").trim().toLowerCase();
+                    String testComment = sam.getPropertyAsString("TestPlan.comments");
                     String testClass = sam.getPropertyAsString("TestElement.test_class");
 
                     try {
@@ -295,7 +295,7 @@ public class JMeterThread implements Runnable, Interruptible {
                             boolean containsOnlyWhitespace = lines.stream().allMatch(line -> line.trim().isEmpty());
 
                             boolean notHTTPSampler = !testClass.toLowerCase().contains("httpsampler");
-                            boolean isMandatePreRequest = testComment.toLowerCase().contains("mandatoryprerequisites");
+                            boolean isMandatePreRequest = testComment.toLowerCase().contains("@mandatory_prerequisites");
                             boolean startsWithEA = testName.startsWith("EA_");
 
                             if (runAll || containsOnlyWhitespace || notHTTPSampler || isMandatePreRequest || startsWithEA) {
