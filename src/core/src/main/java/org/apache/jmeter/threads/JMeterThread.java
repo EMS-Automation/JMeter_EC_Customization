@@ -295,7 +295,7 @@ public class JMeterThread implements Runnable, Interruptible {
                             boolean containsOnlyWhitespace = lines.stream().allMatch(line -> line.trim().isEmpty());
 
                             boolean notHTTPSampler = !testClass.toLowerCase().contains("httpsampler");
-                            boolean isMandatePreRequest = testComment.toLowerCase().contains("@mandatory_prerequisites");
+                            boolean isMandatePreRequest = testComment.toLowerCase().contains("@mandatory_prerequisites:");
                             boolean startsWithEA = testName.startsWith("EA_");
 
                             if (runAll || containsOnlyWhitespace || notHTTPSampler || isMandatePreRequest || startsWithEA) {
