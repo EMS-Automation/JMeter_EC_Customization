@@ -238,10 +238,16 @@ public class IfController extends GenericController implements Serializable, Thr
         boolean skipResult = false;
         if(isEvaluateAll() || isFirst()) {
             result = isUseExpression() ? evaluateExpression(getCondition()):evaluateCondition(getCondition());
+//      --------------------------- Customized for EMS Automation by @ruthna.s---------------------------
             if(!result) {
-                skipResult = true;
+                String controllerComment = getProperty(TestElement.COMMENTS).toString();
+                if (controllerComment != null) {
+                    String removeBlankSpace = controllerComment.replaceAll("\\s", "");
+                    skipResult = removeBlankSpace.contains("@Skip:") || removeBlankSpace.contains("#");
+                }
             }
         }
+//      ---------------------------------------------------------------------------------------------------
 
         if (result) {
             return super.next();

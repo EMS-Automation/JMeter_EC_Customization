@@ -226,4 +226,7 @@ public class SamplePackage {
         return configs;
     }
 
+    public List<Controller> getControllers() {
+        return controllers;
+    }
 }
