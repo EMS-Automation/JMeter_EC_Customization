@@ -17,12 +17,20 @@
 
 package org.apache.jmeter.threads;
 
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
+import java.util.Map;
+import java.util.Collections;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.http.HttpRequest;
 import org.apache.jmeter.assertions.Assertion;
@@ -149,6 +157,7 @@ public class JMeterThread implements Runnable, Interruptible {
     private volatile boolean onErrorStartNextLoop;
 
     private volatile Sampler currentSamplerForInterruption;
+    private Map<String, List<String>> fileContentsCache = new ConcurrentHashMap<>();
 
     private final ReentrantLock interruptLock = new ReentrantLock(); // ensure that interrupt cannot overlap with shutdown
 
@@ -267,43 +276,81 @@ public class JMeterThread implements Runnable, Interruptible {
             while (running) {
                 Sampler sam = threadGroupLoopController.next();
                 while (running && sam != null) {
-                    processSampler(sam, null, threadContext);
-                    threadContext.cleanAfterSample();
+//  ----------------------------------- Customized by EMS Automation - Started ---------------------------------------
+                    boolean foundInFile = false;
+                    JMeterVariables variables = this.threadVars;
+                    String testSuiteBuildDir = variables.get("testSuiteBuildDir");
+                    String runSpecificCasesFilePath = testSuiteBuildDir + File.separator + "JMeterSpecificTestcaseList.txt";
+                    String testName = sam.getPropertyAsString("TestElement.name");
+                    String testComment = sam.getPropertyAsString("TestPlan.comments");
+                    String testClass = sam.getPropertyAsString("TestElement.test_class");
 
-                    boolean lastSampleOk = TRUE.equals(threadContext.getVariables().get(LAST_SAMPLE_OK));
-                    // restart of the next loop
-                    // - was requested through threadContext
-                    // - or the last sample failed AND the onErrorStartNextLoop option is enabled
-                    if (threadContext.getTestLogicalAction() != TestLogicalAction.CONTINUE
-                            || (onErrorStartNextLoop && !lastSampleOk)) {
-                        if (log.isDebugEnabled() && onErrorStartNextLoop
-                                && threadContext.getTestLogicalAction() != TestLogicalAction.CONTINUE) {
-                            log.debug("Start Next Thread Loop option is on, Last sample failed, starting next thread loop");
-                        }
-                        if(onErrorStartNextLoop && !lastSampleOk){
-                            triggerLoopLogicalActionOnParentControllers(sam, threadContext, JMeterThread::continueOnThreadLoop);
+                    try {
+                        Path filePath = Paths.get(runSpecificCasesFilePath);
+                        if (Files.notExists(filePath) || Files.size(filePath) == 0) {
+                            foundInFile = true;
                         } else {
-                            switch (threadContext.getTestLogicalAction()) {
-                                case BREAK_CURRENT_LOOP:
-                                    triggerLoopLogicalActionOnParentControllers(sam, threadContext, JMeterThread::breakOnCurrentLoop);
-                                    break;
-                                case START_NEXT_ITERATION_OF_THREAD:
-                                    triggerLoopLogicalActionOnParentControllers(sam, threadContext, JMeterThread::continueOnThreadLoop);
-                                    break;
-                                case START_NEXT_ITERATION_OF_CURRENT_LOOP:
-                                    triggerLoopLogicalActionOnParentControllers(sam, threadContext, JMeterThread::continueOnCurrentLoop);
-                                    break;
-                                default:
-                                    break;
+                            List<String> lines = Files.readAllLines(filePath);
+                            boolean runAll = lines.stream().anyMatch(line -> line.contains("All"));
+                            boolean containsOnlyWhitespace = lines.stream().allMatch(line -> line.trim().isEmpty());
+
+                            boolean notHTTPSampler = !testClass.toLowerCase().contains("httpsampler");
+                            boolean isMandatePreRequest = testComment.toLowerCase().contains("@mandatory_prerequisites:");
+                            boolean startsWithEA = testName.startsWith("EA_");
+
+                            if (runAll || containsOnlyWhitespace || notHTTPSampler || isMandatePreRequest || startsWithEA) {
+                                foundInFile = true;
+                            } else {
+                                foundInFile = isTestNamePresentInFile(testName, runSpecificCasesFilePath);
                             }
                         }
-                        threadContext.setTestLogicalAction(TestLogicalAction.CONTINUE);
-                        sam = null;
-                        setLastSampleOk(threadContext.getVariables(), true);
+                    } catch (IOException e) {
+                        log.error("Exception occured while predicting the testcases to run!");
                     }
-                    else {
+
+                    if (foundInFile) {
+                        //  ----------------------------------- Customized by EMS Automation - Ended ---------------------------------------
+                        processSampler(sam, null, threadContext);
+                        threadContext.cleanAfterSample();
+
+                        boolean lastSampleOk = TRUE.equals(threadContext.getVariables().get(LAST_SAMPLE_OK));
+                        // restart of the next loop
+                        // - was requested through threadContext
+                        // - or the last sample failed AND the onErrorStartNextLoop option is enabled
+                        if (threadContext.getTestLogicalAction() != TestLogicalAction.CONTINUE
+                                || (onErrorStartNextLoop && !lastSampleOk)) {
+                            if (log.isDebugEnabled() && onErrorStartNextLoop
+                                    && threadContext.getTestLogicalAction() != TestLogicalAction.CONTINUE) {
+                                log.debug("Start Next Thread Loop option is on, Last sample failed, starting next thread loop");
+                            }
+                            if(onErrorStartNextLoop && !lastSampleOk){
+                                triggerLoopLogicalActionOnParentControllers(sam, threadContext, JMeterThread::continueOnThreadLoop);
+                            } else {
+                                switch (threadContext.getTestLogicalAction()) {
+                                    case BREAK_CURRENT_LOOP:
+                                        triggerLoopLogicalActionOnParentControllers(sam, threadContext, JMeterThread::breakOnCurrentLoop);
+                                        break;
+                                    case START_NEXT_ITERATION_OF_THREAD:
+                                        triggerLoopLogicalActionOnParentControllers(sam, threadContext, JMeterThread::continueOnThreadLoop);
+                                        break;
+                                    case START_NEXT_ITERATION_OF_CURRENT_LOOP:
+                                        triggerLoopLogicalActionOnParentControllers(sam, threadContext, JMeterThread::continueOnCurrentLoop);
+                                        break;
+                                    default:
+                                        break;
+                                }
+                            }
+                            threadContext.setTestLogicalAction(TestLogicalAction.CONTINUE);
+                            sam = null;
+                            setLastSampleOk(threadContext.getVariables(), true);
+                        } //  ----------------------------------- Customized by EMS Automation - Started ---------------------------------------
+                        else {
+                            sam = threadGroupLoopController.next();
+                        } //  ----------------------------------- Customized by EMS Automation - Ended ---------------------------------------
+                    } else {
                         sam = threadGroupLoopController.next();
                     }
+
                 }
 
                 // It would be possible to add finally for Thread Loop here
@@ -347,6 +394,34 @@ public class JMeterThread implements Runnable, Interruptible {
             }
         }
     }
+
+//  ----------------------------------- Customized by EMS Automation - Started ---------------------------------------
+    public boolean isTestNamePresentInFile(String testName, String filePath) {
+        try {
+            String exactTestName;
+            List<String> lines = fileContentsCache.computeIfAbsent(filePath, this::readLinesFromFile);
+            if (testName.contains(",")) {
+                exactTestName = testName.substring(0, testName.indexOf(","));
+            } else {
+                exactTestName = testName;
+            }
+            return lines.stream().anyMatch(line -> line.contains(exactTestName));
+        } catch (Exception e) {
+            log.error("Exception occured while reading JMeterSpecificTestcaseList file!");
+            return false;
+        }
+    }
+
+    private List<String> readLinesFromFile(String filePath) {
+        List<String> lines = Collections.emptyList();
+        try {
+            lines = Files.readAllLines(Paths.get(filePath));
+        } catch (Exception e) {
+            log.error("Exception occured while reading JMeterSpecificTestcaseList file!");
+        }
+        return lines;
+    }
+//  ----------------------------------- Customized by EMS Automation - Ended ---------------------------------------
 
     /**
      * Trigger break/continue/switch to next thread Loop  depending on consumer implementation
